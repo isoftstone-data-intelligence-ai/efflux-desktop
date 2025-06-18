@@ -2,11 +2,17 @@
 __pycache__/
 *.py[oc]
 build/
+uploads/
 dist/
 wheels/
+chroma_db/
 *.egg-info
 # idea
 .idea
 
 # Virtual environments
 .venv
+
+*.json
+*.jsonl
+*.log

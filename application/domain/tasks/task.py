@@ -18,6 +18,7 @@ class TaskType(Enum):
     AGENT_CALL = "AGENT_CALL"
     AGENT_CALL_RESULT = "AGENT_CALL_RESULT"
     AGENT_LLM_CALL = "AGENT_LLM_CALL"
+    FILE_PROCESSING = "FILE_PROCESSING"
 
 
 class Task(BaseModel):

@@ -1,8 +1,9 @@
 import base64
 import os
-from typing import Optional
+from typing import Optional, Union
 
-def check_file_and_create(file_url: str, init_str:Optional[str] = None):
+def check_file_and_create(file_url: str, init_str: Optional[Union[str, bytes]] = None):
+    """检查文件是否存在，不存在则创建"""
     # 获取文件夹路径
     folder_path = os.path.dirname(file_url)
     # 如果文件夹不存在，则创建文件夹
@@ -11,7 +12,8 @@ def check_file_and_create(file_url: str, init_str:Optional[str] = None):
         print(f"Folder {folder_path} has been created.")
     # 如果文件不存在，则创建该文件
     if not os.path.exists(file_url):
-        with open(file_url, 'w') as file:  # 打开文件并自动创建
+        mode = 'wb' if isinstance(init_str, bytes) else 'w'
+        with open(file_url, mode) as file:  # 打开文件并自动创建
             print(f"File {file_url} has been created.")
             if init_str:
                 file.write(init_str)

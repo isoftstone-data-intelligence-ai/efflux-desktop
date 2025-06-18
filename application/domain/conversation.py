@@ -42,7 +42,8 @@ class DialogSegmentMetadata(BaseModel):
         return super().model_validate(obj)
 
 class DialogSegmentContent(BaseModel):
-    type: Literal["text", "image"]
+    id: Optional[str] = None
+    type: Literal["text", "image", "file"]
     content: str
 
 class DialogSegment(BaseModel):

@@ -15,7 +15,11 @@ from application.port.outbound.conversation_port import ConversationPort
 from application.port.outbound.cache_port import CachePort
 from application.domain.generators.chat_chunk.chunk import ChatStreamingChunk
 from application.port.outbound.tools_port import ToolsPort
+from application.port.outbound.file_vector_port import FileVectorPort
+from application.port.outbound.vector_model_port import VectorModelPort
+from application.port.outbound.embedding_port import EmbeddingPort
 from application.domain.generators.tools import Tool, ToolInstance, ToolType
+from application.service.base_service.embedding_service import EmbeddingService
 from common.utils.markdown_util import read
 from common.utils.file_util import open_and_base64
 import injector
@@ -32,12 +36,14 @@ class GeneratorService(ModelCase, GeneratorsCase):
 
     @injector.inject
     def __init__(self,
-                 generators_port: GeneratorsPort,
-                 event_port: EventPort,
-                 tools_port: ToolsPort,
-                 user_setting_port: UserSettingPort,
-                 conversation_port: ConversationPort,
-                 cache_port: CachePort,
+            generators_port: GeneratorsPort,
+            event_port: EventPort,
+            tools_port: ToolsPort,
+            user_setting_port: UserSettingPort,
+            conversation_port: ConversationPort,
+            cache_port: CachePort,
+            file_vector_port: FileVectorPort,
+            embedding_service: EmbeddingService,
         ):
         self.generators_port = generators_port
         self.event_port = event_port
@@ -45,6 +51,8 @@ class GeneratorService(ModelCase, GeneratorsCase):
         self.user_setting_port = user_setting_port
         self.conversation_port = conversation_port
         self.cache_port = cache_port
+        self.file_vector_port = file_vector_port
+        self.embedding_service = embedding_service
 
     async def firm_list(self) -> List[GeneratorFirm]:
         return self.generators_port.load_firm()
@@ -170,11 +178,24 @@ class GeneratorService(ModelCase, GeneratorsCase):
             }
             return self.event_port.emit_event(Event.from_init(event_type=EventType.TOOL_CALL_CONFiRM, event_data=event_data))
         else:
-            query_str=None
+            query_str = ''
             if isinstance(query, List):
+                if 'file' in [item.type for item in query]:
+                    all_query_str = ''.join([item.content for item in query])
+                    embeddings = await self.embedding_service.get_embeddings(generator_id)
+                    # history_conversation = self.conversation_port.conversation_load(conversation_id=conversation_id)
                 for item in query:
                     if item.type == 'text':
-                        query_str = item.content
+                        query_str += item.content
+                    if item.type == 'file':
+                        file_query_result = await self.file_vector_port.search_chunks(
+                            embeddings=embeddings,
+                            query=all_query_str,
+                            file_ids=[item.id]
+                        )
+                        print(f"文件查询结果：{file_query_result}")
+                        if file_query_result:
+                            query_str += "\n已知文件'{}'内容：```\n{}\n```".format(item.content, file_query_result[0])
             else:
                 query_str = query
             # 会话检查
