@@ -29,7 +29,7 @@ class AgentService(AgentCase):
         old_agent = self.agent_port.load_by_name(agent.name)
         if old_agent and old_agent.id != agent.id:
             raise BusinessException(error_code=AgentErrorCode.HAS_SAME_NAME,
-                                  dynamics_message="extention: " + agent.name)
+                                  dynamics_message="extension: " + agent.name)
         # tool_list: List[Tool] = []
         # if 'tools_group' in agent_dict:
         #     for tools_group in agent_dict.pop('tools_group'):

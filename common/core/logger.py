@@ -103,6 +103,11 @@ LOGGING_CONFIG = {
             "level": "INFO",  # 只显示 INFO 及以上级别的日志
             "propagate": False,
         },
+        "botocore": {
+            "handlers": ["console", "file"],
+            "level": "INFO",  # 只显示 INFO 及以上级别的日志
+            "propagate": False,
+        },
         "websockets.server": {
             "handlers": ["console", "file"],
             "level": "INFO",  # 只显示 INFO 及以上级别的日志

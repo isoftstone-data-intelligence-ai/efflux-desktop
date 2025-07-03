@@ -27,7 +27,7 @@ async def business_exception_handler(request: Request, exc: BusinessException):
     """
     logger.error(f"BusinessException: {exc}", exc_info=exc)
     return JSONResponse(
-        status_code=500,  # HTTP状态码不能超过599
+        status_code=200,  # HTTP状态码不能超过599
         content=BaseResponse.from_error(code=exc.code, message=exc.message, error_message=exc.dynamics_message).dict()
     )
 

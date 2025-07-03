@@ -65,6 +65,7 @@ class AgentAdapter(AgentPort):
         return prompts
 
     agent_file_url = get_resource_path("adapter/agent/agent.json")
+    customize_agent_file_url = get_resource_path("adapter/agent/customize_agent.json")
     agent_instance_file_pre_url = "conversations/agent_instance/"
 
     def load_instance_info(self, instance_id: str, conversation_id: str) -> Optional[AgentInfo]:
@@ -87,13 +88,29 @@ class AgentAdapter(AgentPort):
         return instance_info
 
     def save(self, agent: Agent) -> str:
-        # check_file_and_create(self.agent_file_url, init_str="{}")
-        agent_config = JSONFileUtil(self.agent_file_url)
+        agent_config = JSONFileUtil(self.customize_agent_file_url)
         agent_config.update_key(agent.id, agent.model_dump())
         return agent.id
 
     def load(self, agent_id: str) -> Optional[Agent]:
-        agent_config = JSONFileUtil(self.agent_file_url)
+        agent = self._load_by_id(agent_id=agent_id, agent_file_url=self.agent_file_url)
+        if agent:
+            return agent
+        return self._load_by_id(agent_id=agent_id, agent_file_url=self.customize_agent_file_url)
+
+    def remove(self, agent_id: str) -> str:
+        agent_config = JSONFileUtil(self.customize_agent_file_url)
+        agent_config.delete(agent_id)
+        return agent_id
+
+    def load_by_name(self, agent_name: str) -> Optional[Agent]:
+        agent = self._load_by_name(agent_name=agent_name, agent_file_url=self.agent_file_url)
+        if agent:
+            return agent
+        return self._load_by_name(agent_name=agent_name, agent_file_url=self.customize_agent_file_url)
+
+    def _load_by_id(self, agent_id: str, agent_file_url: str) -> Optional[Agent]:
+        agent_config = JSONFileUtil(agent_file_url)
         # 遍历所有agent
         for agent_dict_id in agent_config.read().keys():
             # 获取agent
@@ -101,17 +118,13 @@ class AgentAdapter(AgentPort):
                 agent_dict = agent_config.read_key(agent_id)
                 agent = Agent.model_validate(agent_dict)
                 # 加载所有提示词 TODO 后面可能会持久化，统一返回
-                agent.agent_prompts = self._load_prompt_list(agent.info(conversation_id="1", dialog_segment_id="1", generator_id="1", instance_id="1"))
+                agent.agent_prompts = self._load_prompt_list(
+                    agent.info(conversation_id="1", dialog_segment_id="1", generator_id="1", instance_id="1"))
                 return agent
         return None
 
-    def remove(self, agent_id: str) -> str:
-        agent_config = JSONFileUtil(self.agent_file_url)
-        agent_config.delete(agent_id)
-        return agent_id
-
-    def load_by_name(self, agent_name: str) -> Optional[Agent]:
-        agent_config = JSONFileUtil(self.agent_file_url)
+    def _load_by_name(self, agent_name: str, agent_file_url: str) -> Optional[Agent]:
+        agent_config = JSONFileUtil(agent_file_url)
         # 遍历所有agent
         for agent_dict_id in agent_config.read().keys():
             agent_dict = agent_config.read_key(agent_dict_id)
@@ -216,20 +229,25 @@ class AgentAdapter(AgentPort):
 
     def load_all(self) -> List[Agent]:
         agent_config = JSONFileUtil(self.agent_file_url)
+        customize_agent_config = JSONFileUtil(self.customize_agent_file_url)
         res :List[Agent] = []
-        # 遍历所有agent
+        # 遍历所有内置agent
         for agent_dict_id in agent_config.read().keys():
             agent_dict = agent_config.read_key(agent_dict_id)
             agent = Agent.model_validate(agent_dict)
             res.append(agent)
-
+        # 遍历所有自定义agent
+        for agent_dict_id in customize_agent_config.read().keys():
+            agent_dict = customize_agent_config.read_key(agent_dict_id)
+            agent = Agent.model_validate(agent_dict)
+            res.append(agent)
         return res
 
 
     def load_extension(self) -> List[Agent]:
-        agent_config = JSONFileUtil(self.agent_file_url)
+        agent_config = JSONFileUtil(self.customize_agent_file_url)
         res: List[Agent] = []
-        # 遍历所有agent
+        # 遍历所有自定义agent
         for agent_dict_id in agent_config.read().keys():
             agent_dict = agent_config.read_key(agent_dict_id)
             agent = Agent.model_validate(agent_dict)

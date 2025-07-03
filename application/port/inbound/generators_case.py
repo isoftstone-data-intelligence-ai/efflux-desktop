@@ -16,7 +16,7 @@ class GeneratorsCase(ABC):
         tools_group_name_list: Optional[List[str]] = None,
         task_confirm: Optional[Dict[str, Any]] = None,
         artifacts: Optional[bool] = False
-    ) -> tuple[str | None, str]:
+    ) -> tuple[str | None, str, str]:
         """
         ppt生成交互
         :param client_id: ws id

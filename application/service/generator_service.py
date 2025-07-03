@@ -61,6 +61,8 @@ class GeneratorService(ModelCase, GeneratorsCase):
         return self.generators_port.load_firm()
 
     async def model_list(self, firm: str) -> List[LLMGenerator]:
+        if self.generators_port.is_non_standard(firm):
+            return self.generators_port.load_model_by_other_firm(firm)
         return self.generators_port.load_model_by_firm(firm)
 
     async def enabled_model_list(self, firm: str) -> List[LLMGenerator]:
@@ -68,8 +70,11 @@ class GeneratorService(ModelCase, GeneratorsCase):
             return self.generators_port.load_enabled_model_by_firm(firm)
         return self.generators_port.load_enabled_model()
 
-    async def enable_or_disable_model(self, firm: str, model: str, enabled: bool) -> Optional[bool]:
-        return self.generators_port.enable_or_disable_model(firm, model, enabled)
+    async def enable_or_disable_model(
+        self, firm: str, model: str, enabled: bool, model_type: str
+    ) -> Optional[bool]:
+        return self.generators_port.enable_or_disable_model(
+            firm, model, enabled, model_type)
 
     async def generate_test(
             self,
@@ -182,7 +187,7 @@ class GeneratorService(ModelCase, GeneratorsCase):
             tools_group_name_list: Optional[List[str]] = None,
             task_confirm: Optional[Dict[str, Any]] = None,
             artifacts: Optional[bool] = False
-    ) -> tuple[str | None, str]:
+    ) -> tuple[str | None, str, str]:
         query_str = None
         if isinstance(query, List):
             for item in query:
@@ -194,9 +199,11 @@ class GeneratorService(ModelCase, GeneratorsCase):
         conversation_id = self._conversation_check(conversation_id=conversation_id, query_str=query_str)
         # 对话片段id
         dialog_segment_id = create_uuid()
+        # 用户输入对话片段id
+        user_dialog_segment_id = create_uuid()
         # 保存用户输入
         user_dialog_segment = DialogSegment.make_user_message(
-            content=query, conversation_id=conversation_id, id=create_uuid())
+            content=query, conversation_id=conversation_id, id=user_dialog_segment_id)
         self.conversation_port.conversation_add(dialog_segment=user_dialog_segment)
         logger.info(f"保存用户对话片段：[ID：{user_dialog_segment.id} - 内容：{user_dialog_segment.content}]")
         # 清除会话的停止状态
@@ -234,7 +241,7 @@ class GeneratorService(ModelCase, GeneratorsCase):
             logger.info(
                 f"[GeneratorService]发起[{EventType.USER_MESSAGE} - {EventSubType.MESSAGE}]事件：[ID：{event.id}]")
             self.event_port.emit_event(event)
-        return conversation_id, dialog_segment_id
+        return conversation_id, dialog_segment_id, user_dialog_segment_id
 
     async def stop_generate(self, conversation_id: str, client_id: str) -> str:
         self.cache_port.set_data(name=CONVERSATION_STOP_FLAG_KEY, key=conversation_id, value=True)
@@ -356,7 +363,10 @@ class GeneratorService(ModelCase, GeneratorsCase):
         if llm_generator is None:
             raise BusinessException(error_code=GeneratorErrorCode.GENERATOR_NOT_FOUND, dynamics_message=generator_id)
         firm: GeneratorFirm = self.user_setting_port.load_firm_setting(llm_generator.firm)
-        llm_generator.set_api_key_secret(firm.api_key)
+        if self.generators_port.is_non_standard(firm.name):
+            llm_generator.set_api_key_secret(firm.fields)
+        else:
+            llm_generator.set_api_key_secret(firm.api_key)
         llm_generator.check_firm_api_key()
         return llm_generator
 

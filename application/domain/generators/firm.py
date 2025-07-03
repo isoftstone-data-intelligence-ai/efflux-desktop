@@ -12,6 +12,7 @@ class GeneratorFirm(BaseModel):
     model_list: Optional[List[str]] = None
     base_url:Optional[str] = None
     api_key: Optional[ApiKeySecret] = None
+    fields: Optional[dict] = {}
 
     @classmethod
     def from_init(cls, name: str, base_url: str, model_list: Optional[List[str]] = None) -> "GeneratorFirm":
@@ -23,7 +24,11 @@ class GeneratorFirm(BaseModel):
 
     @classmethod
     def from_default(cls, name: str) -> "GeneratorFirm":
-        return GeneratorFirm(id=create_uuid(), name=name)
+        return GeneratorFirm(id=create_uuid(), name=name, base_url="", model_list=[])
+
+    @classmethod
+    def from_other(cls, **kwargs) -> "GeneratorFirm":
+        return GeneratorFirm(id=create_uuid(), base_url="", model_list=[], **kwargs)
 
     # 自定义处理模型转化为字典的方法
     def model_dump(self, **kwargs):

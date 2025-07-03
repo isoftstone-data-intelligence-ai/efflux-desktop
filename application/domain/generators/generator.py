@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from common.utils.auth import ApiKeySecret
+from common.utils.auth import ApiKeySecret, OtherSecret
 from common.utils.common_utils import create_uuid
 from typing import Iterable, Optional, Any, Dict
 from common.core.errors.business_exception import BusinessException
@@ -17,14 +17,14 @@ class LLMGenerator(BaseModel):
     fields: Optional[Dict[str, Any]] = None
 
     @classmethod
-    def from_init(cls, firm: str, model: str) -> "LLMGenerator":
-        return LLMGenerator(id=create_uuid(), firm=firm, model=model, is_enabled=True)
+    def from_init(cls, firm: str, model: str, generators_type: str = None) -> "LLMGenerator":
+        return LLMGenerator(id=create_uuid(), firm=firm, model=model, is_enabled=True, generators_type=generators_type)
 
     @classmethod
     def from_disabled(cls, firm: str, model: str, fields: Optional[Dict[str, Any]] = None):
         return LLMGenerator(id=create_uuid(), firm=firm, model=model, fields=fields, is_enabled=False)
 
-    def set_api_key_secret(self, api_key_secret: ApiKeySecret):
+    def set_api_key_secret(self, api_key_secret: ApiKeySecret | OtherSecret):
         self.api_key_secret = api_key_secret
 
     def check_firm_api_key(self) -> None:

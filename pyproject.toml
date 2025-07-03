@@ -9,6 +9,7 @@ dependencies = [
     "anthropic>=0.49.0",
     "autogen-agentchat>=0.5.7",
     "autogen-core>=0.5.7",
+    "boto3>=1.38.43",
     "cachetools>=5.5.2",
     "colorlog>=6.9.0",
     "docker>=7.1.0",

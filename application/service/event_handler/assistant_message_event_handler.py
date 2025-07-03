@@ -106,8 +106,9 @@ class AssistantMessageEventHandler(EventHandler):
                         model=copy_last_event.data['model'], firm=copy_last_event.data['firm'], timestamp=copy_last_event.data['created'], payload=copy_last_event.payload)
                     agent_instance_id = copy_last_event.payload['agent_instance_id'] if 'agent_instance_id' in copy_last_event.payload else None
                     if agent_instance_id:
-                        assistant_dialog_segment.payload = {"agent_instance_id": agent_instance_id}
-                        self.conversation_port.add_agent_record(dialog_segment=assistant_dialog_segment)
+                        # TODO 暂不处理 agent调用的结果保存
+                        # assistant_dialog_segment.payload = {"agent_instance_id": agent_instance_id}
+                        # self.conversation_port.add_agent_record(dialog_segment=assistant_dialog_segment)
                         # 创建agent call任务
                         task = Task.from_singleton(task_type=TaskType.AGENT_CALL, data=copy_last_event.data,
                                                    payload=copy_last_event.payload,

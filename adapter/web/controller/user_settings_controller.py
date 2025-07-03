@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from common.core.logger import get_logger
 from common.core.container.container import get_container
 from application.port.inbound.user_settings_case import UserSettingsCase
 from application.domain.generators.firm import GeneratorFirm
 from adapter.web.vo.generator_firm_vo import GeneratorFirmResultVo
 from adapter.web.vo.base_response import BaseResponse
-from typing import Optional, List
+from typing import Optional, List, Dict
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/user_setting", tags=["USER_SETTING"])
@@ -22,10 +22,14 @@ async def get_llm_firm(firm: str, user_settings_service: UserSettingsCase = Depe
     else:
         return BaseResponse.from_success()
 
-
 @router.put("/llm_firm")
 async def set_llm_firm(firm: str, api_key: str, base_url: Optional[str] = None, user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
     generator_firm: GeneratorFirm = GeneratorFirm.from_set_firm(name=firm, api_key=api_key, base_url=base_url)
+    return BaseResponse.from_success(data=await user_settings_service.set_firm_setting(generator_firm))
+
+@router.put("/other_llm_firm")
+async def set_other_llm_firm(firm: str, fields: Dict = Body(...), user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
+    generator_firm: GeneratorFirm = GeneratorFirm.from_other(name=firm, fields=fields)
     return BaseResponse.from_success(data=await user_settings_service.set_firm_setting(generator_firm))
 
 @router.get("/llm_firm_list")

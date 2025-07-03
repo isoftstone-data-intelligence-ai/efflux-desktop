@@ -24,5 +24,18 @@ async def enabled_model_list(firm: Optional[str] = None, model_case: ModelCase =
     return BaseResponse.from_success(data=await model_case.enabled_model_list(firm))
 
 @router.put("/model/enable")
-async def enable_model(firm: str, model: str, enabled: bool, model_case: ModelCase = Depends(get_model_case)):
-    return BaseResponse.from_success(data=await model_case.enable_or_disable_model(firm=firm, model=model, enabled=enabled))
+async def enable_model(
+    firm: str,
+    model: str,
+    enabled: bool,
+    model_type: Optional[str] = None,
+    model_case: ModelCase = Depends(get_model_case)
+):
+    return BaseResponse.from_success(
+        data=await model_case.enable_or_disable_model(
+            firm=firm,
+            model=model,
+            enabled=enabled,
+            model_type=model_type
+        )
+    )

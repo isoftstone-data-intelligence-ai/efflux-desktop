@@ -80,7 +80,7 @@ app.add_middleware(
 
 def include_routers_from_package(package_name: str):
     """扫描指定包，动态导入所有模块，并注册路由
-    
+
     Args:
         package_name: 包名，例如 'adapter.web.controller'
     """
@@ -88,7 +88,7 @@ def include_routers_from_package(package_name: str):
         # 尝试直接导入包
         package = import_module(package_name)
         package_path = os.path.dirname(os.path.abspath(package.__file__))
-        
+
         # 获取包中所有模块
         modules = []
         for item in os.listdir(package_path):
@@ -98,7 +98,7 @@ def include_routers_from_package(package_name: str):
                 continue
             module_name = item[:-3]  # 移除 .py 后缀
             modules.append(module_name)
-        
+
         # 导入模块并注册路由
         for module_name in modules:
             try:
@@ -110,7 +110,7 @@ def include_routers_from_package(package_name: str):
             except Exception as e:
                 logger.error(f"Error importing {module_name}: {str(e)}")
                 continue
-                
+
     except Exception as e:
         logger.error(f"Error in include_routers_from_package: {str(e)}")
         import traceback
@@ -253,6 +253,7 @@ def default_setting():
                 "type": "LOCAL"
             }
         ],
+        "build_in": True,
         "description": "PPT Agent"
     }
     agent_config.update_key(agent_ppt['id'], agent_ppt)
@@ -265,6 +266,7 @@ def default_setting():
                 "type": "LOCAL"
             }
         ],
+        "build_in": True,
         "description": "SVG Agent"
     }
     agent_config.update_key(agent_svg['id'], agent_svg)
@@ -283,6 +285,24 @@ def default_setting():
                 "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17", "gemini-2.5-flash-preview-05-20",
                 "gemini-2.0-flash", "gemini-2.0-flash-lite"
             ]
+        },
+        "Amazon Bedrock": {
+            "fields": {
+                "AWS_ACCESS_KEY_ID": "AWS Access Key",
+                "AWS_SECRET_ACCESS_KEY": "AWS Secret Key",
+                "AWS_REGION": "AWS Region",
+            }
+        },
+        "Azure OpenAI": {
+            "fields": {
+                "endpoint": "Azure OpenAI Endpoint: https://isfot-ai.openai.azure.com/ (demo)",
+                "subscription_key": "Azure OpenAI Subscription Key: c70ec31c1d794452a5e18eefb0e**** (demo)",
+                "api_version": "Azure OpenAI API Version: 2024-12-01-preview (demo)"
+            }
+        },
+        "tongyi": {
+            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "model_list": ["qwq-max", "qwq-plus", "deepseek-r1", "deepseek-v3", "qwen-max", "qwen-plus"]
         }
     }
     save_yaml("adapter/model_sdk/setting/openai/model.yaml", model_dist)

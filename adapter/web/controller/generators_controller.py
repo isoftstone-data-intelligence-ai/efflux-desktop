@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/generators", tags=["GENERATORS_CASE"])
 @router.post("/chat")
 async def chat(generators_vo: GeneratorsVo, generators_service: GeneratorsCase = Depends(generators_case)):
 
-    conversation_id, uuid = await generators_service.generate_stream(
+    conversation_id, dialog_segment_id, user_dialog_segment_id = await generators_service.generate_stream(
         generator_id=generators_vo.generator_id,
         client_id=generators_vo.client_id,
         query=generators_vo.query,
@@ -29,7 +29,7 @@ async def chat(generators_vo: GeneratorsVo, generators_service: GeneratorsCase =
         artifacts=generators_vo.artifacts,
     )
 
-    return BaseResponse.from_success(data={"conversation_id": conversation_id, "dialog_segment_id": uuid})
+    return BaseResponse.from_success(data={"conversation_id": conversation_id, "dialog_segment_id": dialog_segment_id, "user_dialog_segment_id": user_dialog_segment_id})
 
 @router.put("/stop")
 async def stop(conversation_id: str, client_id: str, generators_service: GeneratorsCase = Depends(generators_case)):

@@ -71,9 +71,11 @@ class AgentTaskHandler(TaskHandler):
         agent_instance.init_info(agent_info=agent_info)
         # payload 设置
         if "json_result" in task.payload and "content" in task.data: # LLM返回的json结果
-            logger.info(f"task: {task}")
+            # logger.info(f"task: {task}")
             if task.payload['json_result']:
-                task.payload['json_result_data'] = json.loads(task.data["content"])
+                logger.info(f"agent接受json结果{task.data["content"]}")
+                # task.payload['json_result_data'] = json.loads(task.data["content"])
+                task.payload['json_result_data'] = task.data["content"]
             else:
                 task.payload['content'] = task.data["content"]
 
@@ -105,6 +107,9 @@ class AgentTaskHandler(TaskHandler):
         if llm_generator is None:
             raise BusinessException(error_code=GeneratorErrorCode.GENERATOR_NOT_FOUND, dynamics_message=generator_id)
         firm: GeneratorFirm = self.user_setting_port.load_firm_setting(llm_generator.firm)
-        llm_generator.set_api_key_secret(firm.api_key)
+        if self.generators_port.is_non_standard(firm.name):
+            llm_generator.set_api_key_secret(firm.fields)
+        else:
+            llm_generator.set_api_key_secret(firm.api_key)
         llm_generator.check_firm_api_key()
         return llm_generator

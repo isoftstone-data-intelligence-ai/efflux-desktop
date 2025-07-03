@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import ijson
 from common.core.logger import get_logger
 from typing import Optional, Dict, Any
 
@@ -181,3 +182,29 @@ class JSONFileUtil:
             return stream[json_start:json_end]
         else:
             return None  # 如果没有找到完整的 JSON，返回 None
+
+    @staticmethod
+    def get_value_from_incomplete(json_data: str, key: str) -> Optional[str]:
+        # 便利json获得的当前key
+        count_key = ""
+        try:
+            parser = ijson.parse(json_data)
+            for prefix, event, value in parser:
+                if count_key == key and prefix == key:  # 尝试获取json中指定key的value值，如果当前kv不完整，无法获取并抛出异常
+                    return value
+                if event == "map_key":  # 获取到json的key
+                    count_key = value
+                # print(f"Prefix: {prefix}, Event: {event}, Value: {value}")
+        except Exception as e:
+            logger.warning(f"当前key[{count_key}]不完整: {e}")
+            logger.info(f"尝试使用正则表达式获取不完整key[{count_key}]-value...")
+            str_key = f'"{count_key}":'
+            start_idx = json_data.find(str_key)  # 查找 "key": 的位置
+            if start_idx != -1:
+                start_idx += len(str_key)
+                value = json_data[start_idx:]  # 获取值
+                logger.info(f"正则表达式获取不完整key[{count_key}]-value[{value}]")
+                return value
+            else:
+                logger.error(f"正则表达式获取不完整key[{count_key}]-value失败")
+                return None

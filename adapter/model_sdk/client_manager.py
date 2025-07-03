@@ -1,4 +1,7 @@
 from adapter.model_sdk.anthropic.client import AnthropicClient
+from adapter.model_sdk.aws.client import AmazonClient
+from adapter.model_sdk.azure.client import AzureClient
+from adapter.model_sdk import NON_STANDARD_FIRM_SUPPORT_LIST
 from adapter.model_sdk.gemini.client import GeminiClient
 from application.port.outbound.generators_port import GeneratorsPort
 from application.domain.generators.tools import Tool
@@ -39,15 +42,17 @@ class ClientManager(GeneratorsPort):
     def load_firm(self) -> List[GeneratorFirm]:
         firm_list: List[GeneratorFirm] = []
         for firm in self.config.keys():
-            firm_list.append(GeneratorFirm.from_init(name=firm, base_url=self.config[firm]['base_url'], model_list=self.config[firm]['model_list']))
+            if 'model_list' not in self.config[firm]:
+                firm_list.append(GeneratorFirm.from_other(name=firm, **self.config[firm]))
+            else:
+                firm_list.append(GeneratorFirm.from_init(name=firm, base_url=self.config[firm]['base_url'], model_list=self.config[firm]['model_list']))
         return firm_list
 
+    def is_non_standard(self, firm_name: str) -> bool:
+        return firm_name in NON_STANDARD_FIRM_SUPPORT_LIST
+
     def load_model_by_firm(self, firm_name: str) -> List[LLMGenerator]:
-        # firm_dict = self.user_setting.read_key(firm_name)
-        # base_url = firm_dict['base_url']
-        # api_key = firm_dict['api_key']
-        # client: ModelClient = self._get_model_client(firm=firm_name)
-        # model_list: List[LLMGenerator] = client.model_list(api_key=api_key, base_url=base_url)
+        model_list: List[str] = self.config[firm_name]['model_list']
         firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm_name}_model.json"
         firm_model_config = JSONFileUtil(firm_model_config_url)
         model_list: List[str] = self.config[firm_name]['model_list']
@@ -66,6 +71,25 @@ class ClientManager(GeneratorsPort):
                 generator_list.append(LLMGenerator.from_disabled(firm=firm_name, model=model))
         return generator_list
 
+    def load_model_by_other_firm(self, firm_name: str) -> List[LLMGenerator]:
+        firm_setting = self.user_setting.read_key(firm_name)
+        firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm_name}_model.json"
+        firm_model_config = JSONFileUtil(firm_model_config_url).read()
+        enabled_generators_type_map = {
+            model_setting.get('generators_type'): model_setting
+            for model_setting in firm_model_config.values()
+        }
+        generator_list: List[LLMGenerator] = []
+        client: ModelClient = self._get_model_client(firm=firm_name)
+        model_type_list = client.model_list(firm_setting.get('fields'))
+        for model_type_i in model_type_list:
+            if model_type_i in enabled_generators_type_map.keys():
+                LLM_generator_info = enabled_generators_type_map[model_type_i]
+                generator_list.append(LLMGenerator.model_validate(LLM_generator_info))
+            else:
+                generator_list.append(LLMGenerator.from_disabled(firm=firm_name, model=model_type_i))
+        return generator_list
+
     def load_enabled_model_by_firm(self, firm_name: str) -> List[LLMGenerator]:
         firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm_name}_model.json"
         firm_model_config = JSONFileUtil(firm_model_config_url)
@@ -82,11 +106,12 @@ class ClientManager(GeneratorsPort):
             firm_list.extend(self.load_enabled_model_by_firm(firm))
         return firm_list
 
-    def enable_or_disable_model(self, firm: str, model: str, enabled: bool) -> Optional[bool]:
+    def enable_or_disable_model(self, firm: str, model: str, enabled: bool, model_type: str) -> Optional[bool]:
         firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm}_model.json"
         firm_model_config = JSONFileUtil(firm_model_config_url)
         if enabled:
-            llm_generator: LLMGenerator = LLMGenerator.from_init(firm=firm, model=model)
+            llm_generator: LLMGenerator = LLMGenerator.from_init(
+                firm=firm, model=model, generators_type=model_type)
             firm_model_config.update_key(model, llm_generator.model_dump())
         else:
             firm_model_config.delete(model)
@@ -202,3 +227,7 @@ class ClientManager(GeneratorsPort):
             return GeminiClient()
         if firm == "anthropic":
             return AnthropicClient()
+        if firm == "Amazon Bedrock":
+            return AmazonClient()
+        if firm == "Azure OpenAI":
+            return AzureClient()

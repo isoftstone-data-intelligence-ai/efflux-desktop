@@ -21,7 +21,7 @@ class UserSettingAdapter(UserSettingPort):
 
     def set_firm_setting(self, generator_firm: GeneratorFirm) -> bool:
         user_setting = JSONFileUtil(self.user_setting_file_url)
-        if not generator_firm.base_url:
+        if not generator_firm.base_url and generator_firm.api_key:
             generator_firm.base_url = self.config[generator_firm.name]['base_url']
         user_setting.update_key(generator_firm.name, generator_firm.model_dump())
         return True

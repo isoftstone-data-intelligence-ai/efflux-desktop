@@ -26,6 +26,7 @@ class Agent(BaseModel):
     generator_id: Optional[str] = None
     tools_group_list: Optional[List[Dict[str, Any]]] = None
     description: Optional[str] = None
+    built_in: Optional[bool] = False
     agent_prompts: Optional[Dict[str, str]] = None
     result_type: Optional[Literal["text", "html", "svg", "code"]] = None
 
@@ -41,6 +42,7 @@ class Agent(BaseModel):
             name = self.name,
             tools_group_list = self.tools_group_list,
             description = self.description,
+            built_in = self.built_in,
             agent_prompts = self.agent_prompts,
             conversation_id = conversation_id,
             dialog_segment_id = dialog_segment_id,
@@ -57,6 +59,7 @@ class AgentInfo(BaseModel):
     generator_id: Optional[str] = None
     tools_group_list: Optional[List[Dict[str, Any]]] = None
     description: Optional[str] = None
+    built_in: Optional[bool] = None
     agent_prompts: Optional[Dict[str, str]] = None
     result_type: Optional[Literal["text", "html", "svg", "code"]] = None
 

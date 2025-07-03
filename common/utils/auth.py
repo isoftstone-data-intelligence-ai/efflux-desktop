@@ -133,6 +133,10 @@ class Secret(ABC):
         pass
 
 
+class OtherSecret(Dict):
+    pass
+
+
 @dataclass(frozen=True)
 class TokenSecret(Secret):
     """

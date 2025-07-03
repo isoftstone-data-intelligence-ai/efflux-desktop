@@ -67,6 +67,9 @@ class AgentTaskResultHandler(TaskHandler):
         agent_info = self.agent_port.load_instance_info(instance_id=agent_instance_id, conversation_id=conversation_id)
         agent_info.state = task.payload['agent_state']
         self.agent_port.save_instance_info(instance_info=agent_info)
+        if agent_info.state == AgentState.DONE:
+            logger.info(f"当前Agent执行结束，清空当前对话的当前Agent id")
+            self.cache_port.delete_from_cache(CURRENT_CONVERSATION_AGENT_INSTANCE_ID, conversation_id)
         # 如果agent是clarification类型,并且任务完成，调用plan agent
         if agent_info.name == "clarification" and agent_info.state == AgentState.DONE:
             # 根据重新规划的结果调用agent
@@ -76,7 +79,6 @@ class AgentTaskResultHandler(TaskHandler):
                              generator_id = generator_id,
                              payload = {'update': False})
             # 清除当前会话agent_instance_id
-            self.cache_port.delete_from_cache(CURRENT_CONVERSATION_AGENT_INSTANCE_ID, conversation_id)
             logger.info(f"需求澄清结束，调用计划Agent")
 
         # 如果agent是plan类型
@@ -166,7 +168,10 @@ class AgentTaskResultHandler(TaskHandler):
         if llm_generator is None:
             raise BusinessException(error_code=GeneratorErrorCode.GENERATOR_NOT_FOUND, dynamics_message=generator_id)
         firm: GeneratorFirm = self.user_setting_port.load_firm_setting(llm_generator.firm)
-        llm_generator.set_api_key_secret(firm.api_key)
+        if self.generators_port.is_non_standard(firm.name):
+            llm_generator.set_api_key_secret(firm.fields)
+        else:
+            llm_generator.set_api_key_secret(firm.api_key)
         llm_generator.check_firm_api_key()
         return llm_generator
 

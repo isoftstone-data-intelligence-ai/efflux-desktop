@@ -53,7 +53,7 @@ class TextAgent(AgentInstance):
                                                                   model=self.llm_generator.model,
                                                                   firm=self.llm_generator.firm,
                                                                   timestamp=create_from_second_now_to_int(),
-                                                                  payload={'agent_instance_id': self.info.instance_id},
+                                                                  payload={'agent_instance_id': self.info.instance_id, 'agent_name': self.info.name},
                                                                   metadata=DialogSegmentMetadata(
                                                                       source=MetadataSource.AGENT,
                                                                       type=MetadataType.AGENT_RESULT))
@@ -62,12 +62,12 @@ class TextAgent(AgentInstance):
     def _thread_to_context(self, history_message_list: List[ChatStreamingChunk]) -> List[ChatStreamingChunk]:
         """拼装基础system提示词和会话历史信息"""
         # 拼装系统提示词
-        messages: List[ChatStreamingChunk] = [ChatStreamingChunk.from_system(
+        user_message: ChatStreamingChunk = ChatStreamingChunk.from_user(
             message=self.info.agent_prompts["SYSTEM_PROMPT"]
-        )]
+        )
         # 拼装对话上下文
-        messages.extend(history_message_list)
-        return messages
+        history_message_list.insert(-1, user_message)
+        return history_message_list
 
     def _send_agent_result_event(self, client_id: str, payload: Dict[str, Any], agent_state: AgentState) -> None:
         payload['agent_state'] = agent_state
@@ -102,6 +102,7 @@ class TextAgent(AgentInstance):
             },
             payload={
                 "agent_instance_id": self.info.instance_id,
+                "agent_name": self.info.name,
                 "json_result": False,
                 "mcp_name_list": [],
                 "tools_group_name_list": [],

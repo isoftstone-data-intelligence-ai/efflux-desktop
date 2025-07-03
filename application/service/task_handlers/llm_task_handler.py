@@ -83,6 +83,7 @@ class LLMTaskHandler(TaskHandler):
         mcp_name_list = task.payload['mcp_name_list'] if 'mcp_name_list' in task.payload else []
         tools_group_name_list = task.payload['tools_group_name_list'] if 'tools_group_name_list' in task.payload else []
         agent_instance_id = task.payload['agent_instance_id'] if 'agent_instance_id' in task.payload else None
+        agent_name = task.payload['agent_name'] if 'agent_name' in task.payload else None
         json_result = task.payload['json_result'] if 'json_result' in task.payload else None
         json_type = task.payload['json_type'] if 'json_type' in task.payload else None
         message_list = task.payload['context_message_list']
@@ -123,7 +124,12 @@ class LLMTaskHandler(TaskHandler):
         json_end_flag = False
         # json 内容
         json_content = ""
-        for chunk in self.generators_port.generate_event(llm_generator=llm_generator, messages=messages, tools=tools, json_object=json_result):
+        for chunk in self.generators_port.generate_event(
+            llm_generator=llm_generator,
+            messages=messages,
+            tools=tools,
+            json_object=json_result
+        ):
             if chunk.usage: # 跳过用量chunk消息
                 continue
             # 确定当前事件的组状态
@@ -149,6 +155,7 @@ class LLMTaskHandler(TaskHandler):
                     generator_id=generator_id,
                     payload={
                         "agent_instance_id": agent_instance_id,
+                        "agent_name": agent_name,
                         "mcp_name_list": mcp_name_list,
                         "tools_group_name_list": tools_group_name_list,
                         "json_result": json_result,
@@ -202,6 +209,7 @@ class LLMTaskHandler(TaskHandler):
                 event_group=EventGroup(id=uuid, status=group_status),
                 payload={
                     "agent_instance_id": agent_instance_id,
+                    "agent_name": agent_name,
                     "mcp_name_list": mcp_name_list,
                     "tools_group_name_list": tools_group_name_list,
                     "json_result": json_result,
@@ -252,7 +260,10 @@ class LLMTaskHandler(TaskHandler):
         if llm_generator is None:
             raise BusinessException(error_code=GeneratorErrorCode.GENERATOR_NOT_FOUND, dynamics_message=generator_id)
         firm: GeneratorFirm = self.user_setting_port.load_firm_setting(llm_generator.firm)
-        llm_generator.set_api_key_secret(firm.api_key)
+        if self.generators_port.is_non_standard(firm.name):
+            llm_generator.set_api_key_secret(firm.fields)
+        else:
+            llm_generator.set_api_key_secret(firm.api_key)
         llm_generator.check_firm_api_key()
         return llm_generator
 

@@ -14,6 +14,7 @@ from application.port.outbound.tools_port import ToolsPort
 from application.port.outbound.ws_message_port import WsMessagePort
 from common.core.logger import get_logger
 from common.utils.common_utils import create_uuid
+from common.utils.json_file_util import JSONFileUtil
 from common.utils.time_utils import create_from_second_now_to_int
 
 logger = get_logger(__name__)
@@ -40,16 +41,20 @@ class PpterAgent(AgentInstance):
         json_type = 'ppt'
         if "json_result_data" in payload: # 模型返回json结果
             json_result_data = payload["json_result_data"]
-            if not json_result_data['html_code']:
+            needs_code_value = JSONFileUtil.get_value_from_incomplete(json_result_data, "needs_code")
+            if not needs_code_value:
+            #if not json_result_data['html_code']:
                 logger.info("PpterAgent 需要用户继续澄清需求")
-                content = json_result_data['response']
+                # content = json_result_data['response']
+                content = JSONFileUtil.get_value_from_incomplete(json_result_data, "response")
                 json_type = 'ppt_content'
             else:
-                content = json_result_data['html_code']
+                # content = json_result_data['html_code']
+                content = JSONFileUtil.get_value_from_incomplete(json_result_data, "html_code")
                 logger.info(f"ppter agent 记录自己的会话历史: {json_result_data}")
                 new_ppt = Ppt.from_init(conversation_id=self.info.conversation_id,
                                         agent_instance_id=self.info.instance_id,
-                                        html_code=json_result_data['html_code'])
+                                        html_code=content)
                 payload['confirm_data'] = new_ppt
                 payload['confirm_type'] = 'ppt'
                 # 删除agent请求的json
@@ -67,7 +72,7 @@ class PpterAgent(AgentInstance):
                                                                   model=self.llm_generator.model,
                                                                   firm=self.llm_generator.firm,
                                                                   timestamp=create_from_second_now_to_int(),
-                                                                  payload={'agent_instance_id': self.info.instance_id, 'json_type': json_type},
+                                                                  payload={'agent_instance_id': self.info.instance_id, 'agent_name': self.info.name, 'json_type': json_type},
                                                                   metadata=DialogSegmentMetadata(
                                                                       source=MetadataSource.AGENT,
                                                                       type=MetadataType.AGENT_RESULT))
@@ -117,6 +122,7 @@ class PpterAgent(AgentInstance):
             },
             payload={
                 "agent_instance_id": self.info.instance_id,
+                "agent_name": self.info.name,
                 "json_result": True,
                 "json_type": json_type,
                 "mcp_name_list": [],

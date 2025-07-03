@@ -29,7 +29,7 @@ class ModelCase(ABC):
         """
 
     @abstractmethod
-    async def enable_or_disable_model(self, firm: str, model: str, enabled: bool) -> Optional[bool]:
+    async def enable_or_disable_model(self, firm: str, model: str, enabled: bool, model_type: str) -> Optional[bool]:
         """
         启用或禁用模型
         :param firm: 厂商名
