@@ -130,8 +130,12 @@ class AzureClient(ModelClient):
         if tools:
             azure_tools = self._convert_azure_tools(tools)
 
+        response_format = {}
+        if "json_object" in generation_kwargs.keys() and generation_kwargs["json_object"]:
+            response_format = {"type": "json_object"}
+
         try:
-            response = self.client.chat.completions.create(
+            params = dict(
                 stream=True,
                 model=self.deployment,
                 messages=messages,
@@ -141,6 +145,9 @@ class AzureClient(ModelClient):
                 # temperature=generation_kwargs.get('temperature', 1.0),
                 # top_p=generation_kwargs.get('top_p', 1.0),
             )
+            if response_format:
+                params["response_format"] = response_format
+            response = self.client.chat.completions.create(**params)
 
             current_tool_calls = []
             current_tool_id = None
@@ -148,6 +155,7 @@ class AzureClient(ModelClient):
             current_tool_input = ""
 
             for update in response:
+                logger.debug(f"Received update: {update}")
                 '''
                 update
                 {

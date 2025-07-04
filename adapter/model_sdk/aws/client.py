@@ -74,10 +74,31 @@ class AmazonClient(ModelClient):
 
         # 转换消息格式
         bedrock_messages = self._convert_bedrock_messages(message_list)
+        # 工具
         bedrock_tools = None
         if tools:
             bedrock_tools = self._convert_bedrock_tools(tools)
-
+        # 通用JSON工具配置
+        tool_config = {}
+        if "json_object" in generation_kwargs.keys() and generation_kwargs["json_object"]:
+            # 定义一个通用的JSON工具
+            tool_config = {
+                "tools": [
+                    {
+                        "name": "json_output",
+                        "description": "输出JSON格式的结果",
+                        "input_schema": {
+                            "type": "object",
+                            "description": "任意JSON对象",
+                            "additionalProperties": True
+                        }
+                    }
+                ],
+                "tool_choice": {
+                    "type": "tool",
+                    "name": "json_output"
+                }
+            }
         try:
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
@@ -89,6 +110,14 @@ class AmazonClient(ModelClient):
             # 如果有工具，添加到请求中
             if bedrock_tools:
                 body["tools"] = bedrock_tools
+            if tool_config:
+                if body.get("tools"):
+                    body["tools"].extend(bedrock_tools)
+                else:
+                    body["tools"] = tool_config["tools"]
+                body["tool_choice"] = tool_config["tool_choice"]
+            logger.info('body --------------------------------------------')
+            logger.info(json.dumps(body))
 
             response = self.bedrock_runtime.invoke_model_with_response_stream(
                 body=json.dumps(body),
@@ -123,13 +152,16 @@ class AmazonClient(ModelClient):
                 # 处理工具调用参数增量
                 elif chunk_data.get('type') == 'content_block_delta':
                     delta = chunk_data.get('delta', {})
-                    if delta.get('type') == 'input_json_delta':
+                    if delta.get('type') == 'input_json_delta' and current_tool_name != 'json_output':
                         # 累积工具调用参数
                         partial_json = delta.get('partial_json', '')
                         current_tool_input += partial_json
-                    elif delta.get('type') == 'text_delta':
+                    elif delta.get('type') == 'text_delta' or current_tool_name == 'json_output':
                         # 处理普通文本响应
-                        text = delta.get('text', '')
+                        if delta.get('type') == 'text_delta':
+                            text = delta.get('text', '')
+                        else:
+                            text = delta.get('partial_json', '')
                         if text:
                             yield ChatStreamingChunk.from_assistant(
                                 id=create_uuid(),
@@ -144,27 +176,39 @@ class AmazonClient(ModelClient):
                 # 处理工具调用结束
                 elif chunk_data.get('type') == 'content_block_stop':
                     if current_tool_id and current_tool_name:
-                        # 创建工具调用对象
-                        try:
-                            tool_arguments = json.loads(current_tool_input) if current_tool_input else {}
-                        except json.JSONDecodeError:
-                            tool_arguments = {}
-                            logger.error(f"解析工具参数失败: {current_tool_input}")
+                        if current_tool_name == 'json_output':
+                            # 普通消息结束
+                            yield ChatStreamingChunk.from_assistant(
+                                id=create_uuid(),
+                                model=self.model_id,
+                                created=create_from_second_now_to_int(),
+                                finish_reason="stop",
+                                role="assistant",
+                                content='',
+                                reasoning_content='',
+                            )
+                        else:
+                            # 创建工具调用对象
+                            try:
+                                tool_arguments = json.loads(current_tool_input) if current_tool_input else {}
+                            except json.JSONDecodeError:
+                                tool_arguments = {}
+                                logger.error(f"解析工具参数失败: {current_tool_input}")
 
-                        chunk_tools_call = ChatCompletionMessageToolCall(
-                            id=current_tool_id,
-                            name=current_tool_name,
-                            arguments=json.dumps(tool_arguments),
-                        )
+                            chunk_tools_call = ChatCompletionMessageToolCall(
+                                id=current_tool_id,
+                                name=current_tool_name,
+                                arguments=json.dumps(tool_arguments),
+                            )
 
-                        # 匹配mcp-server-name
-                        self._match_mcp_server_name(chunk_tools_call=chunk_tools_call, tools=tools)
-                        current_tool_calls.append(chunk_tools_call)
+                            # 匹配mcp-server-name
+                            self._match_mcp_server_name(chunk_tools_call=chunk_tools_call, tools=tools)
+                            current_tool_calls.append(chunk_tools_call)
 
-                        # 重置工具调用状态
-                        current_tool_id = None
-                        current_tool_name = None
-                        current_tool_input = ""
+                            # 重置工具调用状态
+                            current_tool_id = None
+                            current_tool_name = None
+                            current_tool_input = ""
 
                 # 检查是否是消息结束
                 elif chunk_data.get('type') == 'message_stop':

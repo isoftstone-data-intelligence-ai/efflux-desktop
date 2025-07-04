@@ -17,6 +17,10 @@ from common.utils.json_file_util import JSONFileUtil
 import asyncio
 import json
 import re
+from common.core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @component
 class ClientManager(GeneratorsPort):
@@ -73,6 +77,8 @@ class ClientManager(GeneratorsPort):
 
     def load_model_by_other_firm(self, firm_name: str) -> List[LLMGenerator]:
         firm_setting = self.user_setting.read_key(firm_name)
+        if not firm_setting:
+            return []
         firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm_name}_model.json"
         firm_model_config = JSONFileUtil(firm_model_config_url).read()
         enabled_generators_type_map = {
@@ -212,7 +218,7 @@ class ClientManager(GeneratorsPort):
             base_url=url,
             message_list=messages,
             tools=tools,
-            generation_kwargs=generation_kwargs
+            **generation_kwargs
         )
         for chunk in stream:
             chunk.model = llm_generator.model
