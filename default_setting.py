@@ -65,14 +65,14 @@ model_settings = {
     "google": {
         "base_url": "https://generativelanguage.googleapis.com"
     },
-    "Amazon Bedrock": {
+    "amazon_bedrock": {
         "fields": {
             "AWS_ACCESS_KEY_ID": "AWS Access Key",
             "AWS_SECRET_ACCESS_KEY": "AWS Secret Key",
             "AWS_REGION": "AWS Region",
         }
     },
-    "Azure OpenAI": {
+    "azure_openai": {
         "fields": {
             "endpoint": "Azure OpenAI Endpoint: https://isfot-ai.openai.azure.com/ (demo)",
             "subscription_key": "Azure OpenAI Subscription Key: c70ec31c1d794452a5e18eefb0e**** (demo)",

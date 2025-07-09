@@ -10,7 +10,7 @@ class LLMGenerator(BaseModel):
 
     id: str
     firm: str
-    model: str
+    model: Optional[str] = None
     api_key_secret: Optional[ApiKeySecret] = None
     is_enabled: Optional[bool] = None
     generators_type: Optional[str] = None
@@ -22,8 +22,14 @@ class LLMGenerator(BaseModel):
         return LLMGenerator(id=create_uuid(), firm=firm, model=model, is_enabled=True, generators_type=generators_type, metadata=metadata)
 
     @classmethod
-    def from_disabled(cls, firm: str, model: str, metadata: Optional[Dict[str, Any]] = None):
-        return LLMGenerator(id=create_uuid(), firm=firm, model=model, metadata=metadata, is_enabled=False)
+    def from_disabled(
+        cls,
+        firm: str,
+        model: Optional[str] = None,
+        generators_type: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        return LLMGenerator(id=create_uuid(), firm=firm, model=model, generators_type=generators_type, metadata=metadata, is_enabled=False)
 
     def set_api_key_secret(self, api_key_secret: ApiKeySecret | OtherSecret):
         self.api_key_secret = api_key_secret

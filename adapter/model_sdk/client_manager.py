@@ -17,6 +17,10 @@ from common.utils.json_file_util import JSONFileUtil
 import asyncio
 import json
 import re
+from common.core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @component
 class ClientManager(GeneratorsPort):
@@ -35,6 +39,7 @@ class ClientManager(GeneratorsPort):
             "claude-sonnet-4": 64000,
             "claude-3-7-sonnet": 64000,
             "claude-3-5-sonnet": 8192,
+            "Claude 3.5 Sonnet": 8192,
             "claude-3-5-haiku": 8192,
             "claude-3-opus": 4096,
             "gemini-1.5": 8192,
@@ -82,7 +87,8 @@ class ClientManager(GeneratorsPort):
                 if firm_model_dict:
                     generator_list.append(LLMGenerator.model_validate(firm_model_dict))
                 else:
-                    generator_list.append(LLMGenerator.from_disabled(firm=firm_name, model=model))
+                    generator_list.append(LLMGenerator.from_disabled(
+                        firm=firm_name, model=model, generators_type=model))
         return generator_list
 
     def load_model_by_api(self, firm_name: str) -> List[LLMGenerator]:
@@ -95,6 +101,8 @@ class ClientManager(GeneratorsPort):
 
     def load_model_by_other_firm(self, firm_name: str) -> List[LLMGenerator]:
         firm_setting = self.user_setting.read_key(firm_name)
+        if not firm_setting:
+            return []
         firm_model_config_url = f"adapter/model_sdk/setting/openai/{firm_name}_model.json"
         firm_model_config = JSONFileUtil(firm_model_config_url).read()
         enabled_generators_type_map = {
@@ -104,12 +112,13 @@ class ClientManager(GeneratorsPort):
         generator_list: List[LLMGenerator] = []
         client: ModelClient = self._get_model_client(firm=firm_name)
         model_type_list = client.model_list(firm_setting.get('fields'))
-        for model_type_i in model_type_list:
-            if model_type_i in enabled_generators_type_map.keys():
-                LLM_generator_info = enabled_generators_type_map[model_type_i]
+        for model_type in model_type_list:
+            if model_type in enabled_generators_type_map.keys():
+                LLM_generator_info = enabled_generators_type_map[model_type]
                 generator_list.append(LLMGenerator.model_validate(LLM_generator_info))
             else:
-                generator_list.append(LLMGenerator.from_disabled(firm=firm_name, model=model_type_i))
+                generator_list.append(LLMGenerator.from_disabled(
+                    firm=firm_name, generators_type=model_type))
         return generator_list
 
     def load_enabled_model_by_firm(self, firm_name: str) -> List[LLMGenerator]:
@@ -134,8 +143,9 @@ class ClientManager(GeneratorsPort):
         if enabled:
             output_token_limit = None
             for key in self.max_token_map.keys():
-                if model.startswith(key):
+                if model.startswith(key) or (model_type and model_type in key):
                     output_token_limit = self.max_token_map[key]
+                    break
 
             llm_generator: LLMGenerator = LLMGenerator.from_init(
                 firm=firm, model=model, generators_type=model_type,
@@ -245,7 +255,7 @@ class ClientManager(GeneratorsPort):
             base_url=url,
             message_list=messages,
             tools=tools,
-            generation_kwargs=generation_kwargs
+            **generation_kwargs
         )
         for chunk in stream:
             chunk.model = llm_generator.model
@@ -260,7 +270,7 @@ class ClientManager(GeneratorsPort):
             return GeminiClient()
         if firm == "anthropic":
             return AnthropicClient()
-        if firm == "Amazon Bedrock":
+        if firm == "amazon_bedrock":
             return AmazonClient()
-        if firm == "Azure OpenAI":
+        if firm == "azure_openai":
             return AzureClient()

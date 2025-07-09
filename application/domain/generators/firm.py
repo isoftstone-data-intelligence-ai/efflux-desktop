@@ -20,16 +20,17 @@ class GeneratorFirm(BaseModel):
         return GeneratorFirm(id=create_uuid(), name=name, base_url=base_url, fields=fields)
 
     @classmethod
-    def from_set_firm(cls, name: str, base_url: str, api_key: Optional[str] = None, fields: Optional[dict] = None) -> "GeneratorFirm":
-        return GeneratorFirm(id=create_uuid(), name=name, base_url=base_url, api_key=Secret.from_api_key(api_key), fields=fields)
+    def from_set_firm(cls, name: str, base_url: Optional[str] = None, api_key: Optional[str] = None, fields: Optional[dict] = None) -> "GeneratorFirm":
+        return GeneratorFirm(
+            id=create_uuid(),
+            name=name,
+            base_url=base_url,
+            api_key=Secret.from_api_key(api_key) if api_key else None,
+            fields=fields)
 
     @classmethod
     def from_default(cls, name: str) -> "GeneratorFirm":
         return GeneratorFirm(id=create_uuid(), name=name, base_url="", model_list=[])
-
-    # @classmethod
-    # def from_other(cls, **kwargs) -> "GeneratorFirm":
-    #     return GeneratorFirm(id=create_uuid(), base_url="", model_list=[], **kwargs)
 
     # 自定义处理模型转化为字典的方法
     def model_dump(self, **kwargs):
