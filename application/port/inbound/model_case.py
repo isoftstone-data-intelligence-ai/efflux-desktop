@@ -21,6 +21,14 @@ class ModelCase(ABC):
         """
 
     @abstractmethod
+    async def model_list_fetch(self, firm: str) -> List[LLMGenerator]:
+        """
+        从api拉去指定厂商的模型列表
+        :param firm: 厂商名
+        :return: 模型列表对象
+        """
+
+    @abstractmethod
     async def enabled_model_list(self, firm: str) -> List[LLMGenerator]:
         """
         获取所有指定模型厂商已启用的模型列表

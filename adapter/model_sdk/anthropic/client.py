@@ -144,7 +144,7 @@ class AnthropicClient(ModelClient):
                 tool_choice = self._tool_choice(generation_kwargs=generation_kwargs)
                 response = client.messages.stream(
                         model=model,
-                        max_tokens=128000,
+                        max_tokens=generation_kwargs["output_token_limit"] if "output_token_limit" in generation_kwargs else 8192,
                         stop_sequences=['end_turn'],
                         messages=self._convert_claude_stream_chunk(message_list),
                         system=system_instruction if system_instruction else None,
@@ -154,7 +154,7 @@ class AnthropicClient(ModelClient):
             else:
                 response = client.messages.stream(
                     model=model,
-                    max_tokens=128000,
+                    max_tokens=generation_kwargs["output_token_limit"] if "output_token_limit" in generation_kwargs else 8192,
                     messages=self._convert_claude_stream_chunk(message_list),
                     system=system_instruction if system_instruction else None,
                 )

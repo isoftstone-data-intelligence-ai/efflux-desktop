@@ -13,12 +13,11 @@ def save_yaml(filename: str, data: Dict) -> None:
     with open(get_resource_path(filename), 'w', encoding='utf-8') as file:
         yaml.dump(data, file, default_flow_style=False, allow_unicode=True)
 
-# 根据渠道获取模型类型，并将其保存在字典中
-def get_model_types_by_channel(yaml_data: Dict) -> Dict:
-    model_dict = {}
-
-    # 遍历 YAML 数据中的每个渠道
-    for channel, models in yaml_data.items():
-        model_dict[channel] = models  # 将渠道的模型列表保存在字典中
-
-    return model_dict
+# 插入或修改某个键值对
+def update_yaml_key(filename: str, key: str, value) -> None:
+    # 加载现有的 YAML 数据
+    yaml_data = load_yaml(filename)
+    # 更新或插入键值对
+    yaml_data[key] = value
+    # 保存更新后的数据到文件
+    save_yaml(filename, yaml_data)

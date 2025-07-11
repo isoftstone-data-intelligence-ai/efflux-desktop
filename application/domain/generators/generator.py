@@ -10,19 +10,26 @@ class LLMGenerator(BaseModel):
 
     id: str
     firm: str
-    model: str
+    model: Optional[str] = None
     api_key_secret: Optional[ApiKeySecret] = None
     is_enabled: Optional[bool] = None
     generators_type: Optional[str] = None
     fields: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
     @classmethod
-    def from_init(cls, firm: str, model: str, generators_type: str = None) -> "LLMGenerator":
-        return LLMGenerator(id=create_uuid(), firm=firm, model=model, is_enabled=True, generators_type=generators_type)
+    def from_init(cls, firm: str, model: str, generators_type: str = None, metadata: Optional[Dict[str, Any]] = None) -> "LLMGenerator":
+        return LLMGenerator(id=create_uuid(), firm=firm, model=model, is_enabled=True, generators_type=generators_type, metadata=metadata)
 
     @classmethod
-    def from_disabled(cls, firm: str, model: str, fields: Optional[Dict[str, Any]] = None):
-        return LLMGenerator(id=create_uuid(), firm=firm, model=model, fields=fields, is_enabled=False)
+    def from_disabled(
+        cls,
+        firm: str,
+        model: Optional[str] = None,
+        generators_type: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        return LLMGenerator(id=create_uuid(), firm=firm, model=model, generators_type=generators_type, metadata=metadata, is_enabled=False)
 
     def set_api_key_secret(self, api_key_secret: ApiKeySecret | OtherSecret):
         self.api_key_secret = api_key_secret

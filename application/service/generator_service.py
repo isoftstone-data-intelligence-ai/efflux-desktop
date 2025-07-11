@@ -65,6 +65,9 @@ class GeneratorService(ModelCase, GeneratorsCase):
             return self.generators_port.load_model_by_other_firm(firm)
         return self.generators_port.load_model_by_firm(firm)
 
+    async def model_list_fetch(self, firm: str) -> List[LLMGenerator]:
+        return self.generators_port.load_model_by_api(firm)
+
     async def enabled_model_list(self, firm: str) -> List[LLMGenerator]:
         if firm:
             return self.generators_port.load_enabled_model_by_firm(firm)

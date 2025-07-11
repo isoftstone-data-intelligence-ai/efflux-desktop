@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import os
-import tempfile
+from default_setting import artifacts_prompt, default_agent, model_settings
 import platform
 from importlib import import_module
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +12,7 @@ from application.port.outbound.task_port import TaskPort
 from application.port.outbound.event_port import EventPort
 from application.port.outbound.cache_port import CachePort
 from common.utils.file_util import get_resource_path
-from common.utils.common_utils import CONVERSATION_STOP_FLAG_KEY, SINGLETON_WEBSOCKET_CLIENT_ID, create_uuid, \
-    CURRENT_CONVERSATION_AGENT_INSTANCE_ID
+from common.utils.common_utils import CONVERSATION_STOP_FLAG_KEY, create_uuid, CURRENT_CONVERSATION_AGENT_INSTANCE_ID
 import uvicorn
 import copy
 import asyncio
@@ -44,25 +43,6 @@ app.add_event_handler("startup", startup)
 app.add_event_handler("shutdown", shutdown)
 # 注册异常控制器
 register_exception_handlers(app)
-
-# origins = [
-#     "https://www.runoob.com:80",
-#     "https://www.runoob.com",
-#     "127.0.0.1",
-#     "127.0.0.1:80",
-#     "https://127.0.0.1",
-#     "http://127.0.0.1",
-#     "http://127.0.0.1:80",
-#     # "http://127.0.0.1:3003",
-#     # "http://127.0.0.1:3000",
-#     # "http://127.0.0.1",
-#     # "http://47.236.204.213:3003",
-#     # "http://47.236.204.213:3000",
-#     # "http://47.236.204.213",
-#     # "http://localhost:3003",
-#     # "http://localhost:3000",
-#     # "http://localhost",
-# ]
 
 origins = [
     "*"
@@ -240,116 +220,29 @@ def get_app_data_dir():
     os.makedirs(app_data_dir, exist_ok=True)
     return app_data_dir
 
-def default_setting():
-    print("加载默认配置")
+def set_default_configuration():
+    print("set_default_configuration...")
+    # 配置内置agent
     agent_file_url = get_resource_path("adapter/agent/agent.json")
     agent_config = JSONFileUtil(agent_file_url)
-    agent_ppt = {
-        "id": "f83b0799-366c-4b1b-8983-050ef0ebcf49",
-        "name": "ppter",
-        "tools_group_list": [
-            {
-                "group_name": "browser",
-                "type": "LOCAL"
-            }
-        ],
-        "build_in": True,
-        "description": "PPT Agent"
-    }
+    agent_ppt = default_agent['ppter']
     agent_config.update_key(agent_ppt['id'], agent_ppt)
-    agent_svg = {
-        "id": "f83b0799-366c-4b1b-8983-050ef0ebcf50",
-        "name": "汉语新解",
-        "tools_group_list": [
-            {
-                "group_name": "browser",
-                "type": "LOCAL"
-            }
-        ],
-        "build_in": True,
-        "description": "SVG Agent"
-    }
+    agent_svg = default_agent['new_interpretation_of_chinese']
     agent_config.update_key(agent_svg['id'], agent_svg)
-    model_dist = {
-        "openai":{
-            "base_url": "https://api.openai.com/v1",
-            "model_list": ["o3-pro", "o4-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4.5-preview", "o3", "gpt-4o-search-preview", "gpt-4o-mini-search-preview", "o3-mini", "o1", "o1-pro", "o1-preview", "o1-mini", "gpt-4o", "chatgpt-4o-latest", "gpt-4o-mini"]
-        },
-        "anthropic": {
-            "base_url": "https://api.anthropic.com/v1",
-            "model_list": ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022"]
-        },
-        "google": {
-            "base_url": "https://generativelanguage.googleapis.com",
-            "model_list": [
-                "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite-preview-06-17", "gemini-2.5-flash-preview-05-20",
-                "gemini-2.0-flash", "gemini-2.0-flash-lite"
-            ]
-        },
-        "Amazon Bedrock": {
-            "fields": {
-                "AWS_ACCESS_KEY_ID": "AWS Access Key",
-                "AWS_SECRET_ACCESS_KEY": "AWS Secret Key",
-                "AWS_REGION": "AWS Region",
-            }
-        },
-        "Azure OpenAI": {
-            "fields": {
-                "endpoint": "Azure OpenAI Endpoint: https://isfot-ai.openai.azure.com/ (demo)",
-                "subscription_key": "Azure OpenAI Subscription Key: c70ec31c1d794452a5e18eefb0e**** (demo)",
-                "api_version": "Azure OpenAI API Version: 2024-12-01-preview (demo)"
-            }
-        },
-        "tongyi": {
-            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-            "model_list": ["qwq-max", "qwq-plus", "deepseek-r1", "deepseek-v3", "qwen-max", "qwen-plus"]
-        }
-    }
-    save_yaml("adapter/model_sdk/setting/openai/model.yaml", model_dist)
-    artifacts_prompt = """
-You are a skilled software engineer.
-You do not make mistakes.
-Generate an fragment.
-You can install additional dependencies.
-Do not touch project dependencies files like package.json, package-lock.json, requirements.txt, etc.
-You can use one of the following templates:
-
-1. Python data analyst: "Runs code as a Jupyter notebook cell. Strong data analysis angle. Can use complex visualisation to explain results." File: script.py. Dependencies installed: python, jupyter, numpy, pandas, matplotlib, seaborn, plotly. Port: none.
-2. Next.js developer: "A Next.js 13+ app that reloads automatically. Using the pages router." File: pages/index.tsx. Dependencies installed: nextjs@14.2.5, typescript, @types/node, @types/react, @types/react-dom, postcss, tailwindcss, shadcn. Port: 3000.
-3. Vue.js developer: "A Vue.js 3+ app that reloads automatically. Only when asked specifically for a Vue app." File: app.vue. Dependencies installed: vue@latest, nuxt@3.13.0, tailwindcss. Port: 3000.
-4. Streamlit developer: "A streamlit app that reloads automatically." File: app.py. Dependencies installed: streamlit, pandas, numpy, matplotlib, request, seaborn, plotly. Port: 8501.
-5. Gradio developer: "A gradio app. Gradio Blocks/Interface should be called demo." File: app.py. Dependencies installed: gradio, pandas, numpy, matplotlib, request, seaborn, plotly. Port: 7860.
-
-And please provide your response in JSON format without any additional explanations or comments.
-The response must follow this schema structure, with the code placed in the code field.
-Use the same language matching the user's language when filling the commentary section.
-
-schema:{
-    "commentary": "I will generate a simple 'Hello World' application using the Next.js template. This will include a basic page that displays 'Hello World' when accessed.",
-    "template": "nextjs-developer",
-    "title": "Hello World",
-    "description": "A simple Next.js app that displays 'Hello World'.",
-    "additional_dependencies": [],
-    "has_additional_dependencies": false,
-    "install_dependencies_command": "",
-    "port": 3000,
-    "file_path": "pages/index.tsx",
-    "code": ""
-}
-    """
+    # 模型配置
+    save_yaml("adapter/model_sdk/setting/openai/model.yaml", model_settings)
+    # e2b提示词配置
     write(md_url="adapter/setting/artifacts_prompt.md", content=artifacts_prompt)
 
 
 if __name__ == "__main__":
     # 获取系统临时目录
     data_dir = get_app_data_dir()
-
     # 更改当前工作目录为临时目录
     os.chdir(data_dir)
-
     # 打印当前工作目录，确认更改成功
     print("Current Working Directory:", os.getcwd())
-
-    default_setting()
-
+    # 初始化默认配置
+    set_default_configuration()
+    # 启动
     asyncio.run(main())

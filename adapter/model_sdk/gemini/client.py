@@ -57,6 +57,7 @@ class GeminiClient(ModelClient):
                 include_thoughts=True,
                 thinking_budget=2048,  # 范围 0-16384。默认 1024，最佳边际效果 16000
             ),
+            max_output_tokens=generation_kwargs["output_token_limit"] if "output_token_limit" in generation_kwargs else 8192,
             response_mime_type=response_mime_type,
             system_instruction=system_instruction if system_instruction else None,
             tools=[gemini_tools] if gemini_tools else None,
@@ -138,11 +139,15 @@ class GeminiClient(ModelClient):
             generator = LLMGenerator.from_disabled(
                 firm="google",
                 model=model.name.replace('models/', '', 1),
-                fields={
-                    "input_token_limit": model.input_token_limit,
+                metadata={
+                    #"input_token_limit": model.input_token_limit,
                     "output_token_limit": model.output_token_limit
                 }
             )
+            ttt = {
+                model.name.replace('models/', '', 1): model.output_token_limit
+            }
+            print(ttt)
             generators.append(generator)
         return generators
 

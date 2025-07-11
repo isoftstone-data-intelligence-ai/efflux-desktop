@@ -130,17 +130,28 @@ class AzureClient(ModelClient):
         if tools:
             azure_tools = self._convert_azure_tools(tools)
 
+        response_format = {}
+        if generation_kwargs.get("json_object"):
+            response_format = {"type": "json_object"}
+        # 最大token数
+        max_tokens = 4096
+        if generation_kwargs.get("output_token_limit"):
+            max_tokens = generation_kwargs["output_token_limit"]
         try:
-            response = self.client.chat.completions.create(
+            params = dict(
                 stream=True,
                 model=self.deployment,
                 messages=messages,
                 tools=azure_tools,
                 tool_choice="auto" if azure_tools else None,
-                # max_tokens=generation_kwargs.get('max_tokens', 4096),
+                max_tokens=max_tokens,
                 # temperature=generation_kwargs.get('temperature', 1.0),
                 # top_p=generation_kwargs.get('top_p', 1.0),
             )
+            if response_format:
+                params["response_format"] = response_format
+            logger.info(f"Starting streaming request with params: {params}")
+            response = self.client.chat.completions.create(**params)
 
             current_tool_calls = []
             current_tool_id = None
@@ -148,6 +159,7 @@ class AzureClient(ModelClient):
             current_tool_input = ""
 
             for update in response:
+                logger.debug(f"Received update: {update}")
                 '''
                 update
                 {
@@ -263,19 +275,41 @@ class AzureClient(ModelClient):
 
     def model_list(self, *args, **kwargs):
         logger.info("model_list method is called")
-        self._init_azure(args[0])
         try:
-            r = self.client.models.list()
+            self._init_azure(args[0])
+            response = self.client.models.list()
+            model_obj_list = response.data
+            '''
+            [
+                Model(
+                    id='dall-e-3-3.0',
+                    created=None,
+                    object='model',
+                    owned_by=None,
+                    status='succeeded',
+                    capabilities={
+                        'fine_tune': False,
+                        'inference': True,
+                        'completion': False,
+                        'chat_completion': False,
+                        'embeddings': False
+                    },
+                    lifecycle_status='generally-available',
+                    deprecation={'inference': 1751241600},
+                    created_at=1691712000
+                ),
+            ]
+            '''
+            return list(set([model_obj.id for model_obj in model_obj_list]))
         except NotFoundError as e:
             raise BusinessException(
                 error_code=CommonErrorCode.INVALID_TOKEN,
-                dynamics_message='无效的模型厂商配置，请检查配置'
+                dynamics_message='The configured model firm is invalid. Please check the configuration.'
             )
         except Exception as e:
             logger.error("Failed to get model list: ")
             logger.error(traceback.format_exc())
-        model_obj_list = r.data
-        return list(set([model_obj_i.id for model_obj_i in model_obj_list]))
+            return []
 
     def _convert_azure_messages(self, message_list: Iterable[ChatStreamingChunk]) -> List[dict]:
         """Convert ChatStreamingChunk list to Azure OpenAI message format"""

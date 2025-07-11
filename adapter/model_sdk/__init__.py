@@ -1,4 +1,4 @@
 NON_STANDARD_FIRM_SUPPORT_LIST = [
-    "Amazon Bedrock",
-    "Azure OpenAI",
+    "amazon_bedrock",
+    "azure_openai",
 ]

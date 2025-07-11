@@ -99,6 +99,14 @@ class GeneratorsPort(ABC):
         """
 
     @abstractmethod
+    def load_model_by_api(self, firm_name: str) -> List[LLMGenerator]:
+        """
+        从api拉取模型列表
+        :param firm_name:
+        :return:
+        """
+
+    @abstractmethod
     def is_non_standard(self, firm_name: str) -> bool:
         """
         是否非标准支持的大模型厂商

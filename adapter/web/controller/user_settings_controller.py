@@ -23,14 +23,11 @@ async def get_llm_firm(firm: str, user_settings_service: UserSettingsCase = Depe
         return BaseResponse.from_success()
 
 @router.put("/llm_firm")
-async def set_llm_firm(firm: str, api_key: str, base_url: Optional[str] = None, user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
-    generator_firm: GeneratorFirm = GeneratorFirm.from_set_firm(name=firm, api_key=api_key, base_url=base_url)
-    return BaseResponse.from_success(data=await user_settings_service.set_firm_setting(generator_firm))
-
-@router.put("/other_llm_firm")
-async def set_other_llm_firm(firm: str, fields: Dict = Body(...), user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
-    generator_firm: GeneratorFirm = GeneratorFirm.from_other(name=firm, fields=fields)
-    return BaseResponse.from_success(data=await user_settings_service.set_firm_setting(generator_firm))
+async def set_llm_firm(firm: str, api_key: Optional[str] = None, base_url: Optional[str] = None, fields: Optional[Dict] = Body(...), user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
+    generator_firm: GeneratorFirm = GeneratorFirm.from_set_firm(
+        name=firm, api_key=api_key, base_url=base_url, fields=fields)
+    return BaseResponse.from_success(
+        data=await user_settings_service.set_firm_setting(generator_firm))
 
 @router.get("/llm_firm_list")
 async def get_llm_firm_list(user_settings_service: UserSettingsCase = Depends(user_settings_case)) -> BaseResponse:
