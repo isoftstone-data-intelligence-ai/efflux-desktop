@@ -258,7 +258,7 @@ class AmazonClient(ModelClient):
             # 抛出三方调用异常
             raise ThirdPartyServiceException(
                 error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR,
-                dynamics_message=f"model:{model} - exception:{str(e)}"
+                dynamics_message=str(e)
             )
 
     @staticmethod

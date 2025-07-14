@@ -52,7 +52,7 @@ class AnthropicClient(ModelClient):
         client: Anthropic = self._get_client(api_key=api_secret.resolve_value(),
                                           api_base_url=base_url)
         # 转换为 Anthropic 接口风格的工具
-        anthropic_tools: List[ToolUnionParam] = self._convert_openai_tools(tools)
+        anthropic_tools: List[ToolUnionParam] = self._convert_anthropic_tools(tools)
 
         system_instruction = self._convert_anthropic_system_instruction(chat_streaming_chunk_list=message_list)
         if system_instruction:
@@ -105,7 +105,7 @@ class AnthropicClient(ModelClient):
                                           api_base_url=base_url)
 
         # 转换为 Anthropic 接口风格的工具
-        # anthropic_tools: List[ToolUnionParam] = self._convert_openai_tools(tools)
+        # anthropic_tools: List[ToolUnionParam] = self._convert_anthropic_tools(tools)
 
         with client.messages.stream(
             model=model,
@@ -133,7 +133,7 @@ class AnthropicClient(ModelClient):
         client: Anthropic = self._get_client(api_key=api_secret.resolve_value(),
                                           api_base_url=base_url)
         # 转换为 Anthropic 接口风格的工具
-        anthropic_tools: List[ToolUnionParam] = self._convert_openai_tools(tools)
+        anthropic_tools: List[ToolUnionParam] = self._convert_anthropic_tools(tools)
 
         system_instruction = self._convert_anthropic_system_instruction(chat_streaming_chunk_list=message_list)
         if system_instruction:
@@ -191,7 +191,7 @@ class AnthropicClient(ModelClient):
                         # yield from self.generate_stream(model=model, message_list=message_list, api_secret=api_secret, base_url=base_url, tools=tools, **generation_kwargs)
         except Exception as exc:
             # 抛出三方调用异常
-            raise ThirdPartyServiceException(error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR, dynamics_message=f"model:{model} - exception:{str(exc)}")
+            raise ThirdPartyServiceException(error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR, dynamics_message=str(exc))
 
 
     @staticmethod
@@ -288,13 +288,13 @@ class AnthropicClient(ModelClient):
                 chunk_tools_call.description = tool.description
 
     @staticmethod
-    def _convert_openai_tools(tools: Iterable[Tool]) -> List[ToolUnionParam]:
+    def _convert_anthropic_tools(tools: Iterable[Tool]) -> List[ToolUnionParam]:
         """
         convert anthropic param tools into a list of efflux tools
         :param tools:
         :return:
         """
-        openai_tools: List[ToolUnionParam] = []
+        anthropic_tools: List[ToolUnionParam] = []
         for tool in tools:
             tool_dist = tool.model_dump()
             if "mcp_server_name" in tool_dist:
@@ -306,9 +306,9 @@ class AnthropicClient(ModelClient):
             # if "input_schema" in tool_dist:
             #     tool_dist["parameters"] = tool_dist["input_schema"]
             #     del tool_dist["input_schema"]
-            openai_tools.append(tool_dist)
+            anthropic_tools.append(tool_dist)
 
-        return openai_tools
+        return anthropic_tools
 
     @staticmethod
     def _tool_choice(**generation_kwargs) -> Literal["none", "auto", "any"]:

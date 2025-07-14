@@ -65,6 +65,9 @@ model_settings = {
     "google": {
         "base_url": "https://generativelanguage.googleapis.com"
     },
+    "efflux": {
+        "base_url": "https://aihubmix.com/v1"
+    },
     "amazon_bedrock": {
         "fields": {
             "AWS_ACCESS_KEY_ID": "AWS Access Key",

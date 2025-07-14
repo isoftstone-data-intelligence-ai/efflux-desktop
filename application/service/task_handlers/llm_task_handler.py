@@ -2,11 +2,10 @@ from application.domain.tasks.task import TaskType, Task, TaskState
 from application.domain.events.event import Event, EventType, EventGroupStatus, EventSubType, EventGroup, EventSource
 from application.port.inbound.task_handler import TaskHandler
 from common.core.container.annotate import component
-from common.core.errors.business_error_code import GeneratorErrorCode
+from common.core.errors.business_error_code import GeneratorErrorCode, TaskErrorCode
 from common.core.errors.business_exception import BusinessException
 from common.utils.common_utils import create_uuid, CONVERSATION_STOP_FLAG_KEY
 from common.utils.json_file_util import JSONFileUtil
-from common.utils.time_utils import create_from_second_now_to_int
 from application.port.outbound.event_port import EventPort
 from application.domain.generators.firm import GeneratorFirm
 from application.port.outbound.user_setting_port import UserSettingPort
@@ -65,8 +64,8 @@ class LLMTaskHandler(TaskHandler):
             event_sub_type=EventSubType.ERROR,
             source=EventSource.LLM_HANDLER,
             data={
-                'code': "1",
-                'message': f"{TaskType.LLM_CALL} 异常：{str(exception)}",
+                'code': TaskErrorCode.TASK_RUN_ERR.get_value(),
+                'message': f"{exception}",
             }
         )
         EventPort.get_event_port().emit_event(event)
@@ -174,7 +173,8 @@ class LLMTaskHandler(TaskHandler):
                         chunk.content = text
                         group_status = EventGroupStatus.STARTED
             if json_result and not json_start_flag:
-                logger.info(f"json结果，跳过开始chunk：{chunk.content}")
+                if not chunk.reasoning_content:
+                    logger.info(f"json结果，跳过开始chunk：{chunk.content}")
                 continue
             # json 结束标记
             if json_result and json_start_flag and chunk.content:
@@ -282,20 +282,3 @@ class LLMTaskHandler(TaskHandler):
                                                           tool_call_id=tool_instance.tool_call_id,
                                                           tool_calls=tool_calls))
         return chunk_list
-
-    # @staticmethod
-    # def _tool_calls_history(tool_instance_list: List[ToolInstance]) -> List[ChatStreamingChunk]:
-    #     chunk_list: List[ChatStreamingChunk] = []
-    #     chunk_call_list: List[ChatCompletionMessageToolCall] = []
-    #     # 拼装方法调用请求
-    #     for tool_instance in tool_instance_list:
-    #         chunk_call_list.append(ChatCompletionMessageToolCall(
-    #             id=tool_instance.tool_call_id, mcp_server_name=tool_instance.mcp_server_name, name=tool_instance.name,
-    #             description=tool_instance.description, arguments=json.dumps(tool_instance.arguments)))
-    #     chunk_list.append(ChatStreamingChunk.from_tool_calls(tool_calls=chunk_call_list))
-    #
-    #     for tool_instance in tool_instance_list:
-    #         # 拼装方法调用结果
-    #         chunk_list.append(
-    #             ChatStreamingChunk.from_tool_calls_result(content=str(tool_instance.result), tool_call_id=tool_instance.tool_call_id))
-    #     return chunk_list

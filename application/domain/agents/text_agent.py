@@ -35,7 +35,7 @@ class TextAgent(AgentInstance):
         pass
 
     def execute(self, history_message_list: List[ChatStreamingChunk], payload: Dict[str, Any], client_id: str) -> None:
-        context_message_list = self._thread_to_context(history_message_list)
+        # context_message_list = self._thread_to_context(history_message_list=history_message_list, client_id=client_id)
         content = None
         if "content" in payload:
             content = payload['content']
@@ -44,7 +44,17 @@ class TextAgent(AgentInstance):
             self._send_agent_result_event(client_id=client_id, payload=payload, agent_state=AgentState.DONE)
             # 请求大模型澄清用户需求
         else:
-            self._send_llm_event(client_id=client_id, context_message_list=context_message_list)
+            # 拼装用户提示词
+            user_message: ChatStreamingChunk = ChatStreamingChunk.from_user(
+                message=self.info.agent_prompts["SYSTEM_PROMPT"]
+            )
+            # 保存用户提示词到对话历史
+            self._save_user_message(message=user_message, client_id=client_id,
+                                    last_dialog_segment_id=history_message_list[-1].id)
+            # 拼装对话上下文
+            history_message_list.insert(-1, user_message)
+            # 请求大模型
+            self._send_llm_event(client_id=client_id, context_message_list=history_message_list)
 
         if content:
             # 保存agent结果
@@ -59,15 +69,49 @@ class TextAgent(AgentInstance):
                                                                       type=MetadataType.AGENT_RESULT))
             self.conversation_port.conversation_add(dialog_segment=dialog_segment)
 
-    def _thread_to_context(self, history_message_list: List[ChatStreamingChunk]) -> List[ChatStreamingChunk]:
-        """拼装基础system提示词和会话历史信息"""
-        # 拼装系统提示词
-        user_message: ChatStreamingChunk = ChatStreamingChunk.from_user(
-            message=self.info.agent_prompts["SYSTEM_PROMPT"]
+    # def _thread_to_context(self, history_message_list: List[ChatStreamingChunk], client_id: str) -> List[ChatStreamingChunk]:
+    #     """拼装基础system提示词和会话历史信息"""
+    #     # 拼装用户提示词
+    #     user_message: ChatStreamingChunk = ChatStreamingChunk.from_user(
+    #         message=self.info.agent_prompts["SYSTEM_PROMPT"]
+    #     )
+    #     # 拼装对话上下文
+    #     history_message_list.insert(-1, user_message)
+    #     return history_message_list
+
+    def _save_user_message(self, message: ChatStreamingChunk, client_id: str, last_dialog_segment_id: str):
+        # 保存用户提示词到对话历史
+        dialog_segment = DialogSegment.make_user_message(
+            id=create_uuid(),
+            content=message.content,
+            conversation_id=self.info.conversation_id,
+            payload={'agent_instance_id': self.info.instance_id,'agent_name': self.info.name},
+            metadata=DialogSegmentMetadata(source=MetadataSource.USER,type=MetadataType.MESSAGE)
         )
-        # 拼装对话上下文
-        history_message_list.insert(-1, user_message)
-        return history_message_list
+        self.conversation_port.conversation_insert(dialog_segment=dialog_segment, index=-1)
+        # 发送ws消息，用于前端插入用户最新输入之前
+        event = Event.from_init(
+            event_type=EventType.USER_MESSAGE,
+            event_sub_type=EventSubType.MESSAGE,
+            client_id=client_id,
+            source=EventSource.AGENT,
+            data={
+                "id": create_uuid(),
+                "dialog_segment_id": dialog_segment.id,
+                "conversation_id": self.info.conversation_id,
+                "generator_id": self.info.generator_id,
+                "content": dialog_segment.content,
+            },
+            payload={
+                "agent_instance_id": self.info.instance_id,
+                "agent_name": self.info.name,
+                "json_result": False,
+                "mcp_name_list": [],
+                "tools_group_name_list": [],
+                "prior_dialog_segment_id": last_dialog_segment_id,
+            }
+        )
+        self.ws_message_port.send(event)
 
     def _send_agent_result_event(self, client_id: str, payload: Dict[str, Any], agent_state: AgentState) -> None:
         payload['agent_state'] = agent_state
