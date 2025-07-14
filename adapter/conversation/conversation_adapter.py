@@ -41,6 +41,19 @@ class ConversationAdapter(ConversationPort):
             writer.write(dialog_segment.model_dump())
         return dialog_segment
 
+    def conversation_insert(self, dialog_segment: DialogSegment, index: int) -> DialogSegment:
+        dialog_segment_file = f'conversations/{dialog_segment.conversation_id}.jsonl'
+        # 读取原文件所有行
+        with jsonlines.open(dialog_segment_file, mode='r') as reader:
+            data = list(reader)  # data 是一个包含所有 JSON 对象的列表
+        # 插入到倒数第二行
+        data.insert(index, dialog_segment.model_dump())  # 插入到倒数第二行
+        # 重新写入整个文件（覆盖）
+        with jsonlines.open(dialog_segment_file, mode='w') as writer:
+            writer.write_all(data)
+        return dialog_segment
+
+
     def dialog_segment_remove(self, conversation_id: str, dialog_segment_id: str) -> str:
         dialog_segment_file = f'conversations/{conversation_id}.jsonl'
         segments = []

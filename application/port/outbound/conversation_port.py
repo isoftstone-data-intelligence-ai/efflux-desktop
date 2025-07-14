@@ -15,6 +15,11 @@ class ConversationPort(ABC):
         pass
 
     @abstractmethod
+    def conversation_insert(self, dialog_segment: DialogSegment, index: int) -> DialogSegment:
+        """插入对话片段"""
+        pass
+
+    @abstractmethod
     def dialog_segment_remove(self, conversation_id: str, dialog_segment_id: str) -> str:
         """删除对话片段"""
         pass

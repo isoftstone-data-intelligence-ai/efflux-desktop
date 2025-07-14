@@ -44,6 +44,9 @@ class SvgerAgent(AgentInstance):
             self._send_agent_result_event(client_id=client_id, payload=payload, agent_state=AgentState.DONE)
             # 请求大模型澄清用户需求
         else:
+
+
+            # 发送大模型请求
             self._send_llm_event(client_id=client_id, context_message_list=context_message_list, json_type= json_type)
 
         if content:

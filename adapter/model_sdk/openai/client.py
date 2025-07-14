@@ -153,7 +153,7 @@ class OpenAIClient(ModelClient):
                 )
         except Exception as exc:
             # 抛出三方调用异常
-            raise ThirdPartyServiceException(error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR, dynamics_message=f"model:{model} - exception:{str(exc)}")
+            raise ThirdPartyServiceException(error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR, dynamics_message=str(exc))
 
         tool_calls: List[ChatCompletionMessageToolCall] = []
         current_role = ""

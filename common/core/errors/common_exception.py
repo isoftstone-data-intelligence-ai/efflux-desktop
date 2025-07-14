@@ -20,7 +20,7 @@ class CommonException(Exception):
 
     def __str__(self):
         # 重写异常的输出方式
-        return f"{self.code} - {self.message} - {self.dynamics_message}"
+        return f"{self.code}:{self.dynamics_message}"
 
 
 # 自定义装饰器，处理异常，异常作为参数传递给 default_func
