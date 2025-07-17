@@ -8,6 +8,7 @@ from application.domain.generators.chat_chunk.chunk import ChatStreamingChunk, C
     ChatCompletionMessageToolCall
 from application.domain.generators.generator import LLMGenerator
 from application.domain.generators.tools import Tool
+from common.core.errors.system_exception import ThirdPartyServiceException, ThirdPartyServiceApiCode
 from common.utils.auth import Secret
 from common.utils.common_utils import create_uuid
 from common.utils.time_utils import create_from_timestamp_to_int, create_from_second_now_to_int
@@ -40,51 +41,59 @@ class GeminiClient(ModelClient):
         **generation_kwargs) -> Generator[ChatStreamingChunk, None, None]:
 
         client = self._get_client(api_key=api_secret.resolve_value(), base_url=base_url)
+        try:
+            system_instruction = self._convert_gemini_system_instruction(chat_streaming_chunk_list=message_list)
+            if system_instruction:
+                logger.debug(f"system_instruction: {system_instruction}")
+            # Define the grounding tool
+            grounding_tool = types.Tool(
+                google_search=types.GoogleSearch()
+            )
+            gemini_tools = [grounding_tool]
+            if tools:
+                gemini_tools.append(self._convert_gemini_tools(tools=tools))
 
-        system_instruction = self._convert_gemini_system_instruction(chat_streaming_chunk_list=message_list)
-        if system_instruction:
-            logger.debug(f"system_instruction: {system_instruction}")
-        gemini_tools = None
-        if tools:
-            gemini_tools = self._convert_gemini_tools(tools=tools)
+            response_mime_type = "text/plain"
+            if "json_object" in generation_kwargs.keys() and generation_kwargs["json_object"]:
+                response_mime_type = "application/json"
 
-        response_mime_type = "text/plain"
-        if "json_object" in generation_kwargs.keys() and generation_kwargs["json_object"]:
-            response_mime_type = "application/json"
+            generate_content_config = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=True,
+                    thinking_budget=2048,  # 范围 0-16384。默认 1024，最佳边际效果 16000
+                ),
+                max_output_tokens=generation_kwargs["output_token_limit"] if "output_token_limit" in generation_kwargs else 8192,
+                # response_mime_type=response_mime_type,
+                system_instruction=system_instruction if system_instruction else None,
+                #tools=[gemini_tools] if gemini_tools else None,
+                tools=gemini_tools
+            )
 
-        generate_content_config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(
-                include_thoughts=True,
-                thinking_budget=2048,  # 范围 0-16384。默认 1024，最佳边际效果 16000
-            ),
-            max_output_tokens=generation_kwargs["output_token_limit"] if "output_token_limit" in generation_kwargs else 8192,
-            response_mime_type=response_mime_type,
-            system_instruction=system_instruction if system_instruction else None,
-            tools=[gemini_tools] if gemini_tools else None,
-        )
+            content_list = self._convert_gemini_stream_chunk(chat_streaming_chunk_list=message_list)
 
-        content_list = self._convert_gemini_stream_chunk(chat_streaming_chunk_list=message_list)
+            if tools:
+                self._convert_gemini_tools(tools=tools)
 
-        if tools:
-            self._convert_gemini_tools(tools=tools)
+            response: Iterator[GenerateContentResponse] = client.models.generate_content_stream(
+                model=model,
+                contents=content_list,
+                config=generate_content_config,
+            )
 
-        response: Iterator[GenerateContentResponse] = client.models.generate_content_stream(
-            model=model,
-            contents=content_list,
-            config=generate_content_config,
-        )
-
-        for chunk in response:
-            logger.debug(f"原始chunk返回：{chunk}")
-            logger.debug("============================================================================================")
-            # if chunk.usage_metadata:
-            #     logger.debug(f"跳过用量：{chunk.usage_metadata}")
-            #     continue
-            if chunk.function_calls: # tools调用要先返回一个空的stop标识chunk
-                yield self._convert_efflux_stream_chunk(model=model, stop_flag=True)
-                yield self._convert_efflux_stream_chunk(content_response=chunk, tools=tools)
-            else:
-                yield  self._convert_efflux_stream_chunk(content_response=chunk)
+            for chunk in response:
+                logger.debug(f"原始chunk返回：{chunk}")
+                logger.debug("============================================================================================")
+                # if chunk.usage_metadata:
+                #     logger.debug(f"跳过用量：{chunk.usage_metadata}")
+                #     continue
+                if chunk.function_calls: # tools调用要先返回一个空的stop标识chunk
+                    yield self._convert_efflux_stream_chunk(model=model, stop_flag=True)
+                    yield self._convert_efflux_stream_chunk(content_response=chunk, tools=tools)
+                else:
+                    yield  self._convert_efflux_stream_chunk(content_response=chunk)
+        except Exception as exc:
+            # 抛出三方调用异常
+            raise ThirdPartyServiceException(error_code=ThirdPartyServiceApiCode.LLM_SERVICE_API_ERROR, dynamics_message=str(exc))
 
 
     def generate_test(self, model: str = None, message_list: Iterable[ChatStreamingChunk] = None,

@@ -14,9 +14,7 @@ from common.utils.yaml_util import load_yaml
 from adapter.model_sdk.client import ModelClient
 from adapter.model_sdk.openai.client import OpenAIClient
 from common.utils.json_file_util import JSONFileUtil
-import asyncio
 import json
-import re
 from common.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -162,9 +160,16 @@ class ClientManager(GeneratorsPort):
         messages: Iterable[ChatStreamingChunk] = None,
         **generation_kwargs,
     ) -> ChatStreamingChunk:
-        client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         firm_setting = self.user_setting.read_key(llm_generator.firm)
         url = firm_setting["base_url"]
+        if llm_generator.firm.lower() == 'efflux': # 临时兼容写法
+            client: ModelClient = self._get_model_client_from_model(model_name=llm_generator.model)
+            if isinstance(client, GeminiClient):
+                url = "https://aihubmix.com/gemini"
+            if isinstance(client, AnthropicClient):
+                url = "https://aihubmix.com"
+        else:
+            client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         rs = client.generate(
             model=llm_generator.model,
             api_secret=llm_generator.api_key_secret,
@@ -183,9 +188,16 @@ class ClientManager(GeneratorsPort):
         tools: Iterable[Tool] = None,
         **generation_kwargs,
     )-> Dict[str, Any] | None:
-        client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         firm_setting = self.user_setting.read_key(llm_generator.firm)
         url = firm_setting["base_url"]
+        if llm_generator.firm.lower() == 'efflux': # 临时兼容写法
+            client: ModelClient = self._get_model_client_from_model(model_name=llm_generator.model)
+            if isinstance(client, GeminiClient):
+                url = "https://aihubmix.com/gemini"
+            if isinstance(client, AnthropicClient):
+                url = "https://aihubmix.com"
+        else:
+            client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         client.generate_test(
             model=llm_generator.model,
             api_secret=llm_generator.api_key_secret,
@@ -242,9 +254,16 @@ class ClientManager(GeneratorsPort):
         tools: Iterable[Tool] = None,
         **generation_kwargs,
     ) -> Generator[ChatStreamingChunk, None, None]:
-        client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         firm_setting = self.user_setting.read_key(llm_generator.firm)
         url = firm_setting["base_url"]
+        if llm_generator.firm.lower() == 'efflux': # 临时兼容写法
+            client: ModelClient = self._get_model_client_from_model(model_name=llm_generator.model)
+            if isinstance(client, GeminiClient):
+                url = "https://aihubmix.com/gemini"
+            if isinstance(client, AnthropicClient):
+                url = "https://aihubmix.com"
+        else:
+            client: ModelClient = self._get_model_client(firm=llm_generator.firm)
         if llm_generator.metadata and "output_token_limit" in llm_generator.metadata:
             if "output_token_limit" not in generation_kwargs:
                 generation_kwargs["output_token_limit"] = llm_generator.metadata["output_token_limit"]
@@ -262,8 +281,15 @@ class ClientManager(GeneratorsPort):
             chunk.firm = llm_generator.firm
             yield chunk
 
+    def _get_model_client_from_model(self, model_name: str) -> ModelClient:
+        if 'claude' in model_name.lower():
+            return AnthropicClient()
+        if 'gemini' in model_name.lower():
+            return GeminiClient()
+        return OpenAIClient()
 
     def _get_model_client(self, firm: str) -> ModelClient:
+        firm = firm.lower()
         if firm == "openai":
             return OpenAIClient()
         if firm == "google":
@@ -274,3 +300,5 @@ class ClientManager(GeneratorsPort):
             return AmazonClient()
         if firm == "azure_openai":
             return AzureClient()
+        if firm == "efflux":
+            return OpenAIClient()
